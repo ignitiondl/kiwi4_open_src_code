@@ -1,0 +1,64 @@
+--- a/gpio-button-hotplug.c
++++ b/gpio-button-hotplug.c
+@@ -216,7 +216,8 @@ static int button_hotplug_create_event(c
+ 	event->name = name;
+ 	event->type = type;
+ 	event->seen = seen;
+-	event->action = pressed ? "pressed" : "released";
++//	event->action = pressed ? "pressed" : "released";
++    event->action = pressed ?  seen ? "timeout" : "pressed" : "released";
+ 
+ 	INIT_WORK(&event->work, (void *)(void *)button_hotplug_work);
+ 	schedule_work(&event->work);
+@@ -253,9 +254,14 @@ static void button_hotplug_event(struct
+ 	if (btn < 0)
+ 		return;
+ 
+-	button_hotplug_create_event(button_map[btn].name, type,
+-			(seen - priv->seen) / HZ, value);
+-	priv->seen = seen;
++	if (btn == 11) {
++		button_hotplug_create_event(button_map[btn].name, type,
++				(seen - priv->seen) * 1000 / HZ, value);
++	} else {
++		button_hotplug_create_event(button_map[btn].name, type,
++				(seen - priv->seen) / HZ, value);
++	}
++	//priv->seen = seen;
+ }
+ 
+ struct gpio_keys_button_dev {
+@@ -282,6 +288,9 @@ static int gpio_button_get_value(struct
+ static void gpio_keys_polled_check_state(struct gpio_keys_button_data *bdata)
+ {
+ 	int state = gpio_button_get_value(bdata);
++	int btn = button_get_index(bdata->b->code);
++	struct bh_priv *priv = &bdata->bh;
++	unsigned long seen = jiffies;
+ 
+ 	if (state != bdata->last_state) {
+ 		unsigned int type = bdata->b->type ?: EV_KEY;
+@@ -290,11 +299,21 @@ static void gpio_keys_polled_check_state
+ 			bdata->count++;
+ 			return;
+ 		}
+-
++		if (state == 1)
++			priv->seen = seen;
+ 		if ((bdata->last_state != -1) || (type == EV_SW))
+ 			button_hotplug_event(bdata, type, state);
+-
++		if (state == 0)
++			priv->seen = seen;
+ 		bdata->last_state = state;
++	} else if (btn == 11 && state == 1) {
++		unsigned int type = bdata->b->type ?: EV_KEY;
++		if (bdata->count >= 50) {
++			button_hotplug_event(bdata, type, state);
++			bdata->count = 0;
++		}
++		bdata->count++;
++		return;
+ 	}
+ 
+ 	bdata->count = 0;
