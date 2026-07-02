@@ -28,4 +28,4 @@ This repository is provided solely for open source license compliance. Software 
 
 ## Contact
 
-Please replace with your company's official OSS compliance contact email.
+Please replace with your company's official OSS compliance contact email support@ignitiondl.com.
